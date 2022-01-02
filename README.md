@@ -1,2 +1,0 @@
-# Fifo
-Fifo Project
