@@ -4,6 +4,9 @@ import com.saimon.FifoProject.Service.TaskService;
 import com.saimon.FifoProject.api.Dto.MyTaskDTO;
 import com.saimon.FifoProject.api.Exceptions.ApiErrors;
 import com.saimon.FifoProject.api.Model.Entity.MyTask;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/task")
@@ -24,7 +29,7 @@ public class FiFoControllers {
 
 
     @GetMapping("/{id}")
-    public MyTaskDTO getTask(@PathVariable Long id){
+    public MyTaskDTO getTask(@PathVariable Long id) {
         MyTask foundTask = taskService.getById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return new MyTaskDTO(foundTask.getId(), foundTask.getTaskDescription(), foundTask.getTimestamp());
     }
@@ -37,7 +42,7 @@ public class FiFoControllers {
     }
 
     @PutMapping("/{id}")
-    public MyTaskDTO update (@PathVariable Long id, @RequestBody MyTaskDTO dto){
+    public MyTaskDTO update(@PathVariable Long id, @RequestBody MyTaskDTO dto) throws IllegalAccessException {
         MyTask foundTask = taskService.getById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         foundTask.setTaskDescription(dto.getDescription());
         foundTask.setTimestamp(dto.getTimestamp());
@@ -47,9 +52,24 @@ public class FiFoControllers {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete (@PathVariable Long id){
+    public void delete(@PathVariable Long id) throws IllegalAccessException {
         MyTask foundTask = taskService.getById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         taskService.delete(foundTask);
+    }
+
+    @GetMapping
+    public Page<MyTaskDTO> find(MyTaskDTO dto, Pageable pageRequest) {
+        MyTask task = new MyTask(dto.getDescription(), dto.getTimestamp());
+        Page<MyTask> result = taskService.find(task, pageRequest);
+        List<MyTaskDTO> list = result
+                .getContent()
+                .stream()
+                .map(entity -> new MyTaskDTO(entity.getId(),
+                        entity.getTaskDescription(),
+                        entity.getTimestamp()))
+                .collect(Collectors.toList());
+        return new PageImpl<MyTaskDTO>(list, pageRequest, result.getTotalElements());
+
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

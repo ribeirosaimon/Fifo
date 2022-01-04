@@ -14,6 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -22,6 +25,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 @ExtendWith(SpringExtension.class)
@@ -191,4 +195,27 @@ public class TaskControllersTest {
                 .andExpect(MockMvcResultMatchers.status().isNotFound());
     }
 
+    @Test
+    @DisplayName("Filter Task")
+    public void filterTask() throws Exception {
+        MyTask savedTask = new MyTask(TEST_DESCRIPTION, TEST_TIMESTAMP);
+        savedTask.setId(TEST_ID);
+
+        BDDMockito.given(taskService.find(Mockito.any(MyTask.class), Mockito.any(Pageable.class)))
+                .willReturn(new PageImpl<MyTask>(Arrays.asList(savedTask), PageRequest.of(0, 100), 1));
+
+        String queryString = String.format("?taskDescription=%s&timestamp=%s&page=0&size=100",  savedTask.getTaskDescription(), savedTask.getTimestamp());
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders
+                .get(TASK_API.concat(queryString))
+                .accept(MediaType.APPLICATION_JSON);
+        mvc
+                .perform(request)
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("content", Matchers.hasSize(1)))
+                .andExpect(MockMvcResultMatchers.jsonPath("totalElements").value(1))
+                .andExpect(MockMvcResultMatchers.jsonPath("pageable.pageSize").value(100))
+                .andExpect(MockMvcResultMatchers.jsonPath("pageable.pageNumber").value(0))
+        ;
+
+    }
 }
